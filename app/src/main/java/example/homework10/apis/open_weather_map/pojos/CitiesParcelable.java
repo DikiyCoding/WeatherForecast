@@ -1,22 +1,33 @@
 package example.homework10.apis.open_weather_map.pojos;
 
+import android.arch.persistence.room.*;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
 
+@Entity(tableName = "city_weather")
 public class CitiesParcelable implements Parcelable {
-
-    private final String TAG = "Logs";
 
     /**
      * Variables
      */
 
+    @PrimaryKey
+    private final int id;
+
+    @ColumnInfo(name = "wind_speed")
+    private final int windSpeed;
+
+    @ColumnInfo(name = "wind_degrees")
+    private final int windDegrees;
+
+    @Ignore
+    private final String TAG = "Logs";
+
+    @Ignore
     private final double degreesDifference = 273.15;
 
-    private final int id, datetime, pressure, humidity, windSpeed, windDegrees, cloudiness;
-    private double temperature, latitude, longitude;
-    private String name, country;
+    @Ignore
     public static final Creator<CitiesParcelable> CREATOR = new Creator<CitiesParcelable>() {
 
         @Override
@@ -29,6 +40,10 @@ public class CitiesParcelable implements Parcelable {
             return new CitiesParcelable[size];
         }
     };
+
+    private final int datetime, pressure, humidity, cloudiness;
+    private double temperature, latitude, longitude;
+    private String name, country;
 
     /**
      * Constructors
@@ -118,7 +133,7 @@ public class CitiesParcelable implements Parcelable {
      * Getters
      */
 
-    public int getID() {
+    public int getId() {
         return id;
     }
 
@@ -134,7 +149,7 @@ public class CitiesParcelable implements Parcelable {
         return humidity;
     }
 
-    public double getWindSpeed() {
+    public int getWindSpeed() {
         return windSpeed;
     }
 

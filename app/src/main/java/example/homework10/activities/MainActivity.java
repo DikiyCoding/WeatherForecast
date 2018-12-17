@@ -1,7 +1,11 @@
 package example.homework10.activities;
 
 import android.Manifest;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.content.pm.PackageManager;
+import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -9,34 +13,45 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import example.homework10.R;
 import example.homework10.adapters.CityListAdapter;
-import example.homework10.apis.ApiURLHelper;
-import example.homework10.apis.Connections;
+import example.homework10.adapters.ItemClickCallback;
+import example.homework10.apis.ApiFactory;
+import example.homework10.apis.Constants;
 import example.homework10.apis.open_weather_map.pojos.Cities;
 import example.homework10.apis.open_weather_map.pojos.CitiesParcelable;
-import example.homework10.apis.open_weather_map.pojos.List;
+import example.homework10.apis.open_weather_map.pojos.CityList;
+import example.homework10.application.App;
 import example.homework10.permissons.PermissionCallback;
-import example.homework10.permissons.PermissionChecker;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import example.homework10.permissons.PermissionCheckerUtils;
+import io.reactivex.Completable;
+import io.reactivex.CompletableObserver;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
-import static example.homework10.permissons.PermissionChecker.RuntimePermissions.PERMISSION_REQUEST_FINE_LOCATION;
+import static example.homework10.permissons.PermissionCheckerUtils.RuntimePermissions.PERMISSION_REQUEST_FINE_LOCATION;
 
-public class MainActivity extends AppCompatActivity implements PermissionCallback {
+public class MainActivity extends AppCompatActivity implements PermissionCallback, ItemClickCallback {
 
     private final String TAG = "Logs";
+    private final String timeKey = "current_time";
 
-    private java.util.List<CitiesParcelable> cities;
+    private List<CitiesParcelable> cities;
     private LocationManager locationManager;
+    private CompletableObserver dbOutputObserver;
+    private Observer<Cities> netObserver;
     private CityListAdapter adapter;
     private RecyclerView list;
+    private Intent intent;
+
     private double latitude, longitude;
+    private long hour;
     private int numberOfCities;
     private boolean isListSetted;
 
@@ -45,26 +60,36 @@ public class MainActivity extends AppCompatActivity implements PermissionCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
-        new Connections();
+        hour = 3600;
+        numberOfCities = 20;
+
         cities = new ArrayList<>();
         list = findViewById(R.id.list);
-        adapter = new CityListAdapter(this, cities);
+        adapter = new CityListAdapter(this,this, cities);
         list.setAdapter(adapter);
-
-        numberOfCities = 20;
-        isListSetted = false;
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         checkPermissions();
+
+        isRefreshTime();
+        setObservers();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        getCoordinates();
-        if(getCoordinates() && !isListSetted) getCities();
+        if (getCoordinates() && !isListSetted) getCities();
         Log.i(TAG, "Latitude is " + latitude);
         Log.i(TAG, "Longitude is " + longitude);
+    }
+
+    @Override
+    public void onItemClick(int position) {
+        if (position != RecyclerView.NO_POSITION) {
+            intent = new Intent(this, DetailActivity.class);
+            intent.putExtra("values", cities.get(position));
+            this.startActivity(intent);
+        }
     }
 
     @Override
@@ -80,73 +105,119 @@ public class MainActivity extends AppCompatActivity implements PermissionCallbac
     }
 
     @Override
-    public void permissionGranted(PermissionChecker.RuntimePermissions permission) {
+    public void permissionGranted(PermissionCheckerUtils.RuntimePermissions permission) {
         Log.i(TAG, "Разрешения получены");
     }
 
     @Override
-    public void permissionDenied(PermissionChecker.RuntimePermissions permission) {
+    public void permissionDenied(PermissionCheckerUtils.RuntimePermissions permission) {
         Log.i(TAG, "Разрешения отклонены");
     }
 
-    //TODO Permissions better way
     private void checkPermissions() {
-        PermissionChecker permissionChecker = new PermissionChecker();
+        PermissionCheckerUtils permissionChecker = new PermissionCheckerUtils();
         permissionChecker.checkForPermissions(this, PERMISSION_REQUEST_FINE_LOCATION, this);
     }
 
     private boolean getCoordinates() {
+
+        Location bestLocation = null;
+
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             return false;
-        //TODO solution between Network and GPS
-        latitude = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLatitude();
-        longitude = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER).getLongitude();
+
+        for (String provider : locationManager.getProviders(true)) {
+            Location location = locationManager.getLastKnownLocation(provider);
+            if (location == null) continue;
+            if (bestLocation == null || location.getAccuracy() < bestLocation.getAccuracy()) bestLocation = location;
+        }
+
+        latitude = bestLocation.getLatitude();
+        longitude = bestLocation.getLongitude();
+
         return true;
     }
 
-    //TODO Retrofit RX
     //TODO Interceptors
     private void getCities() {
-        Call<Cities> call = Connections.openWeatherMapAPI.getData(latitude, longitude, numberOfCities, ApiURLHelper.API_KEY);
-        call.enqueue(new Callback<Cities>() {
+        ApiFactory.getWeatherService()
+                .getData(latitude, longitude, numberOfCities, Constants.API_KEY)
+                .subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(netObserver);
+    }
 
-            @Override
-            public void onResponse(Call<Cities> call, Response<Cities> response) {
-
-                if(response.code() != 200) {
-                    Toast.makeText(MainActivity.this, response.message(), Toast.LENGTH_LONG).show();
-                    return;
-                }
-
-                if(response.body() != null) {
-                    setList(response.body());
+    private void getСache() {
+        Log.d(TAG, "Дёргаем инфу из базы данных");
+        App.getInstance()
+                .getDatabase()
+                .cityWeatherDAO()
+                .getAll()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(citiesParcelables -> {
+                    cities.addAll(citiesParcelables);
                     updateList();
-                }
-            }
+                });
+    }
 
-            @Override
-            public void onFailure(Call<Cities> call, Throwable t) {
-                Log.e(TAG, "Something goes wrong");
-            }
-        });
+    private void setCache() {
+        Log.d(TAG, "Сохраняем инфу в базу данных");
+        Completable.fromAction(() -> App.getInstance()
+                .getDatabase()
+                .cityWeatherDAO()
+                .insert(cities))
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
+                .subscribe(dbOutputObserver);
+    }
+
+    private boolean checkElapsedTime() {
+        if (getSavedTime() == 0)
+            return true;
+        else
+            return (getCurrentTime() - getSavedTime()) >= hour;
+    }
+
+    private void isRefreshTime() {
+        if (checkElapsedTime()) {
+            isListSetted = false;
+        } else {
+            isListSetted = true;
+            getСache();
+        }
+    }
+
+    private void setSavedTime() {
+        SharedPreferences preferences = getPreferences(MODE_PRIVATE);
+        Editor editor = preferences.edit();
+        editor.putLong(timeKey, getCurrentTime());
+        editor.apply();
+    }
+
+    private long getSavedTime() {
+        return getPreferences(MODE_PRIVATE).getLong(timeKey, 0);
+    }
+
+    private long getCurrentTime() {
+        return System.currentTimeMillis() / 1000;
     }
 
     private void setList(Cities cities) {
-        for (List list : cities.getList()) {
+        for (CityList city : cities.getList()) {
             this.cities.add(new CitiesParcelable(
-                list.getId(),
-                list.getDt(),
-                list.getMain().getPressure(),
-                list.getMain().getHumidity(),
-                list.getWind().getSpeed(),
-                list.getWind().getDeg(),
-                list.getClouds().getAll(),
-                list.getMain().getTemp(),
-                list.getCoord().getLat(),
-                list.getCoord().getLon(),
-                list.getName(),
-                list.getSys().getCountry())
+                    city.getId(),
+                    city.getDt(),
+                    city.getMain().getPressure(),
+                    city.getMain().getHumidity(),
+                    city.getWind().getSpeed(),
+                    city.getWind().getDeg(),
+                    city.getClouds().getAll(),
+                    city.getMain().getTemp(),
+                    city.getCoord().getLat(),
+                    city.getCoord().getLon(),
+                    city.getName(),
+                    city.getSys().getCountry())
             );
         }
         isListSetted = true;
@@ -154,5 +225,54 @@ public class MainActivity extends AppCompatActivity implements PermissionCallbac
 
     private void updateList() {
         adapter.notifyDataSetChanged();
+    }
+
+    private void setObservers() {
+
+        netObserver = new Observer<Cities>() {
+
+            @Override
+            public void onSubscribe(Disposable disposable) {
+            }
+
+            @Override
+            public void onNext(Cities cities) {
+                Log.d(TAG, "Успешно сходили в инет и дёргаем инфу с городов :)");
+                setList(cities);
+            }
+
+            @Override
+            public void onComplete() {
+                Log.d(TAG, "Обновляем рекуклер :)");
+                updateList();
+                setSavedTime();
+                setCache();
+            }
+
+            @Override
+            public void onError(Throwable exception) {
+                Log.e(TAG, "Не получилось сходить в инет :(");
+                Log.e(TAG, "Вот почему: " + exception.getMessage());
+                getСache();
+            }
+        };
+
+        dbOutputObserver = new CompletableObserver() {
+
+            @Override
+            public void onSubscribe(Disposable disposable) {
+            }
+
+            @Override
+            public void onComplete() {
+                Log.d(TAG, "Успешно сохранили инфу в базу данных :)");
+            }
+
+            @Override
+            public void onError(Throwable exception) {
+                Log.i(TAG, "Не получилось сохранить инфу в базу данных :(");
+                Log.i(TAG, "Вот почему: " + exception.getMessage());
+            }
+        };
     }
 }

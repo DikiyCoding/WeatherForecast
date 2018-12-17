@@ -10,5 +10,5 @@
     <string name="latitude">Latitude</string>
     <string name="longitude">Longitude</string>
     <string name="windSpeed">Wind Speed</string>
-    <string name="windDegrees">Wind Degrees</string>
+    <string name="windDirection">Wind Direction</string>
 </resources>

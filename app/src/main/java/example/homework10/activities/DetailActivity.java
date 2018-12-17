@@ -6,7 +6,7 @@ import android.widget.TextView;
 
 import example.homework10.R;
 import example.homework10.apis.open_weather_map.pojos.CitiesParcelable;
-import example.homework10.handlers.UnixHandler;
+import example.homework10.handlers.StringFormatHandler;
 
 public class DetailActivity extends AppCompatActivity {
 
@@ -22,24 +22,24 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private void viewsInit() {
-        city = findViewById(R.id.city);
-        country = findViewById(R.id.country);
-        datetime = findViewById(R.id.datetime);
-        temperature = findViewById(R.id.temperature);
-        pressure = findViewById(R.id.pressure);
-        humidity = findViewById(R.id.humidity);
-        cloudiness = findViewById(R.id.cloudiness);
-        latitude = findViewById(R.id.latitude);
-        longitude = findViewById(R.id.longitude);
-        windSpeed = findViewById(R.id.wind_speed);
-        windDegrees = findViewById(R.id.wind_degrees);
+        city = findViewById(R.id.tv_city);
+        country = findViewById(R.id.tv_country);
+        datetime = findViewById(R.id.tv_datetime);
+        temperature = findViewById(R.id.tv_temperature);
+        pressure = findViewById(R.id.tv_pressure);
+        humidity = findViewById(R.id.tv_humidity);
+        cloudiness = findViewById(R.id.tv_cloudiness);
+        latitude = findViewById(R.id.tv_latitude);
+        longitude = findViewById(R.id.tv_longitude);
+        windSpeed = findViewById(R.id.tv_wind_speed);
+        windDegrees = findViewById(R.id.tv_wind_direction);
     }
 
     private void setValues () {
         values = getIntent().getParcelableExtra("values");
         city.setText(values.getName());
         country.setText(values.getCountry());
-        datetime.setText(UnixHandler.fromUNIXtoReadable(values.getDatetime()));
+        datetime.setText(StringFormatHandler.fromUNIXtoReadable(values.getDatetime()));
         temperature.setText(values.getTemperature() + "°С");
         pressure.setText(values.getPressure() + " hpa");
         humidity.setText(values.getHumidity() + "%");
@@ -47,6 +47,6 @@ public class DetailActivity extends AppCompatActivity {
         latitude.setText(values.getLatitude() + "º");
         longitude.setText(values.getLongitude() + "º");
         windSpeed.setText(values.getWindSpeed() + " m/s");
-        windDegrees.setText(values.getWindDegrees() + "º");
+        windDegrees.setText(StringFormatHandler.getDirection(values.getWindDegrees()));
     }
 }

@@ -5,7 +5,7 @@
     android:layout_height="100dp">
 
     <TextView
-        android:id="@+id/itemCityName"
+        android:id="@+id/tv_city_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
@@ -14,28 +14,28 @@
         android:text="Казань" />
 
     <TextView
-        android:id="@+id/itemCountryName"
+        android:id="@+id/tv_country_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/itemCityName"
+        android:layout_below="@id/tv_city_name"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
         android:text="Другая инфа" />
 
     <TextView
-        android:id="@+id/itemDayTime"
+        android:id="@+id/tv_time"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/itemCountryName"
-        android:layout_alignLeft="@id/itemCountryName"
+        android:layout_below="@id/tv_country_name"
+        android:layout_alignLeft="@id/tv_country_name"
         android:text="Время" />
 
     <TextView
-        android:id="@+id/itemTemperature"
+        android:id="@+id/tv_temperature"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/itemCountryName"
-        android:layout_alignRight="@id/itemCountryName"
+        android:layout_below="@id/tv_country_name"
+        android:layout_alignRight="@id/tv_country_name"
         android:text="Температура" />
 
 </RelativeLayout>

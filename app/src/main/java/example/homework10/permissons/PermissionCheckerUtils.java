@@ -6,7 +6,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.support.v4.app.ActivityCompat;
 
-public class PermissionChecker {
+public class PermissionCheckerUtils {
 
     private boolean isPermissionGranted(Context context, final RuntimePermissions permission) {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || ActivityCompat.checkSelfPermission(context, permission.toStringValue()) == PackageManager.PERMISSION_GRANTED;
