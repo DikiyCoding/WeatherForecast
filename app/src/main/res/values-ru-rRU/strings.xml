@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Homework#10</string>
+    <string name="city">Город</string>
+    <string name="country">Страна</string>
+    <string name="datetime">Время</string>
+    <string name="temperature">Температура</string>
+    <string name="humidity">Влажность</string>
+    <string name="pressure">Давление</string>
+    <string name="cloudiness">Облачность</string>
+    <string name="latitude">Широта</string>
+    <string name="longitude">Долгота</string>
+    <string name="windSpeed">Скорость ветра</string>
+    <string name="windDirection">Ветер</string>
+    </resources>
